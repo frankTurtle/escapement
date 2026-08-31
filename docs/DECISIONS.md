@@ -16,6 +16,8 @@ The process itself is [ADR-0001](adr/0001-record-architecture-decisions.md).
 | [0009](adr/0009-in-process-bm25-retriever.md) | Retrieval is a port, with in-process BM25 as the default | Accepted |
 | [0010](adr/0010-gitflow-branching-model.md) | GitFlow branching model | Accepted |
 | [0011](adr/0011-deterministic-budgeted-context-packing.md) | Context assembly is deterministic budgeted packing | Accepted |
+| [0012](adr/0012-eval-regression-gates.md) | Regression gates with a committed baseline and a release-only ratchet | Accepted |
+| [0013](adr/0013-trajectory-graders-over-run-ledger.md) | Grade trajectories, with pure functions over the ledger | Accepted |
 | [0014](adr/0014-model-provider-port.md) | The model is a port, and the scripted provider is first-class | Accepted |
 | [0015](adr/0015-small-tool-schema-and-readonly.md) | A deliberately small tool schema, and `readOnly` as a machine-readable permission | Accepted |
 
