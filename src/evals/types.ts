@@ -24,17 +24,24 @@ export type Grade = {
 };
 
 /**
- * A pure function from a recorded run to a score (ADR-0013).
+ * A function from a recorded run to a score (ADR-0013, ADR-0017).
  *
- * Graders never call a model, never touch the network, and never look at
- * anything but the ledger. That is what makes the suite fast, hermetic, and
- * able to run on every pull request.
+ * Every grader shipped in this package is pure: it never calls a model, never
+ * touches the network, and looks at nothing but the ledger. That is what makes
+ * the default suite fast, hermetic, and able to run on every pull request.
+ *
+ * `grade` may nonetheless return a promise, so that a grader which genuinely
+ * needs I/O — an LLM-as-judge rubric being the obvious one — can be written
+ * against this interface instead of forking it. Purity is a property of the
+ * graders we ship and of the suite that gates pull requests, not something the
+ * type enforces; a grader that awaits belongs in a slower suite where its cost
+ * is visible.
  */
 export type Grader = {
   readonly id: string;
   /** Relative weight within the case. Defaults to 1. */
   readonly weight?: number;
-  grade(context: GradeContext): Grade;
+  grade(context: GradeContext): Grade | Promise<Grade>;
 };
 
 export type EvalCase = {

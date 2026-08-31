@@ -9,16 +9,31 @@ import {
 import type { Outcome, Usage } from "../orchestrator/state.ts";
 import type { Grade, GradeContext, Grader } from "./types.ts";
 
-/** Build a grader from a plain function. The escape hatch for anything bespoke. */
+/** What a grader body returns: a grade without the id, which the helper fills in. */
+type GradeBody = Omit<Grade, "graderId">;
+
+const isThenable = (value: unknown): value is PromiseLike<GradeBody> =>
+  typeof (value as { then?: unknown } | null)?.then === "function";
+
+/**
+ * Build a grader from a plain function. The escape hatch for anything bespoke.
+ *
+ * `fn` may be async (ADR-0017). The synchronous path stays synchronous rather
+ * than being wrapped in a resolved promise: every grader below takes it, and
+ * they should not start suspending because one hypothetical judge might.
+ */
 export function grader(
   id: string,
-  fn: (context: GradeContext) => Omit<Grade, "graderId">,
+  fn: (context: GradeContext) => GradeBody | Promise<GradeBody>,
   weight?: number,
 ): Grader {
   return {
     id,
     ...(weight === undefined ? {} : { weight }),
-    grade: (context) => ({ graderId: id, ...fn(context) }),
+    grade: (context) => {
+      const body = fn(context);
+      return isThenable(body) ? Promise.resolve(body).then((b) => ({ graderId: id, ...b })) : { graderId: id, ...body };
+    },
   };
 }
 

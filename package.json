@@ -1,6 +1,6 @@
 {
   "name": "escapement",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Deterministic agent orchestration: an explicit state machine, a token-budgeted context assembler, and trajectory-grading evals with CI regression gates.",
   "keywords": [
     "agents",

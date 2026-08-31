@@ -1,6 +1,10 @@
 # ADR-0013: Grade trajectories, with pure functions over the ledger
 
 - **Status:** Accepted
+- **Amended by:** [ADR-0017](0017-asynchronous-graders.md) — `grade` may return a
+  promise, so the rubric grader this ADR points at can actually be written. The
+  text below is left as it stood; the claim that such a grader "would fit the
+  `Grader` interface exactly" was not true when written.
 - **Date:** 2026-08-31
 - **Deciders:** Core maintainers
 
