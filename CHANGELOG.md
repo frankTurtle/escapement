@@ -5,6 +5,40 @@ Notable changes to Escapement. The format follows
 [semver](https://semver.org/). While the major version is `0`, minor releases
 may change behaviour — including eval scores, which the baseline records.
 
+## [0.1.1] — 2026-08-31
+
+Packaging and hygiene. No behaviour change: the eval baseline is untouched and
+all 204 tests are unmoved.
+
+### Fixed
+
+- **`prepublishOnly` now builds before publishing.** `files` ships `dist/`,
+  which is gitignored — publishing without a build would have uploaded a package
+  containing no code. This was the one genuine footgun.
+- **Type resolution for consumers.** `exports` now carries explicit `types`
+  conditions per entry point, plus a top-level `types` field for legacy
+  resolvers. Verified against `moduleResolution` `nodenext` and `bundler` (all
+  four entry points) and `node10` (root import; subpath exports are not
+  resolvable under legacy resolution by design, and TypeScript says so clearly).
+- **Source maps now resolve.** The package shipped `.js.map` and `.d.ts.map`
+  but not the sources they point at. `src/` is now included, so stepping into
+  the library and "go to definition" both land on real TypeScript.
+
+### Added
+
+- `repository`, `homepage`, `bugs` and `author` metadata, so the npm page links
+  back to the source, the issues and the README.
+- `./package.json` to the `exports` map, which some tooling reads.
+
+### Changed
+
+- `contextWithinBudget` no longer destructures an `evalCase` it immediately
+  discarded, and both it and `sectionNeverStarved` now use the `reportsOf`
+  helper that already existed instead of inlining its body. Found by a slop
+  scan; no functional change.
+
+[0.1.1]: https://github.com/frankTurtle/escapement/releases/tag/v0.1.1
+
 ## [0.1.0] — 2026-08-31
 
 The first release. Three components, fifteen decision records, and a promise
