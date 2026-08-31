@@ -250,9 +250,8 @@ const reportsOf = (context: GradeContext): ReportShape[] =>
 
 /** The packer's core promise, checked from outside the packer. */
 export const contextWithinBudget = (): Grader =>
-  grader("context-within-budget", ({ ledger, evalCase }) => {
-    const reports = contextReports(ledger) as unknown as ReportShape[];
-    void evalCase;
+  grader("context-within-budget", (context) => {
+    const reports = reportsOf(context);
     if (reports.length === 0) return { score: 1, passed: true, reason: "no assembly reports (no assembler configured)" };
     const over = reports.filter((r) => r.used > r.usable);
     return {
@@ -268,9 +267,8 @@ export const contextWithinBudget = (): Grader =>
 
 /** A section that exists but never gets space is a silent context bug. */
 export function sectionNeverStarved(sectionId: string): Grader {
-  return grader(`section-never-starved:${sectionId}`, ({ ledger }) => {
-    const reports = contextReports(ledger) as unknown as ReportShape[];
-    const relevant = reports.flatMap((r) => r.sections.filter((s) => s.id === sectionId));
+  return grader(`section-never-starved:${sectionId}`, (context) => {
+    const relevant = reportsOf(context).flatMap((r) => r.sections.filter((s) => s.id === sectionId));
     if (relevant.length === 0) {
       return { score: 0, passed: false, reason: `section "${sectionId}" never appeared in any assembly` };
     }
