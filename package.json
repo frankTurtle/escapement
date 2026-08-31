@@ -1,6 +1,6 @@
 {
   "name": "escapement",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic agent orchestration: an explicit state machine, a token-budgeted context assembler, and trajectory-grading evals with CI regression gates.",
   "keywords": [
     "agents",
@@ -13,20 +13,44 @@
     "ai"
   ],
   "license": "MIT",
+  "author": "frankTurtle (https://github.com/frankTurtle)",
+  "homepage": "https://github.com/frankTurtle/escapement#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frankTurtle/escapement.git"
+  },
+  "bugs": {
+    "url": "https://github.com/frankTurtle/escapement/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.6.0"
   },
   "files": [
     "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./orchestrator": "./dist/orchestrator/index.js",
-    "./context": "./dist/context/index.js",
-    "./evals": "./dist/evals/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./orchestrator": {
+      "types": "./dist/orchestrator/index.d.ts",
+      "default": "./dist/orchestrator/index.js"
+    },
+    "./context": {
+      "types": "./dist/context/index.d.ts",
+      "default": "./dist/context/index.js"
+    },
+    "./evals": {
+      "types": "./dist/evals/index.d.ts",
+      "default": "./dist/evals/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
     "escapement": "./dist/evals/cli.js"
@@ -39,7 +63,8 @@
     "eval:gate": "node --experimental-strip-types src/evals/cli.ts gate",
     "eval:baseline": "node --experimental-strip-types src/evals/cli.ts baseline",
     "verify": "npm run typecheck && npm test && npm run eval:gate",
-    "diagram": "node --experimental-strip-types scripts/generate-state-machine-doc.ts"
+    "diagram": "node --experimental-strip-types scripts/generate-state-machine-doc.ts",
+    "prepublishOnly": "npm run verify && npm run build"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
