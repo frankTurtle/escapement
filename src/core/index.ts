@@ -19,6 +19,8 @@ export {
   invariant,
   unreachable,
   InvariantViolation,
+  CarriedError,
+  throwing,
   toEscapementError,
 } from "./errors.ts";
 

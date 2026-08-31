@@ -105,8 +105,32 @@ export function unreachable(value: never, context = "unreachable"): never {
   throw new InvariantViolation(`${context}: unhandled variant`, JSON.stringify(value) ?? "undefined");
 }
 
+/**
+ * Carries a classified error across a boundary that can only throw.
+ *
+ * Some ports — the context assembler, the finalizer — are plain functions
+ * because a Result-returning signature would infect every caller. When one of
+ * those fails in a way the machine should route on, it throws this, and
+ * `toEscapementError` unwraps it with the classification intact.
+ */
+export class CarriedError extends Error {
+  readonly escapement: EscapementError;
+  constructor(error: EscapementError) {
+    super(error.message);
+    this.name = "CarriedError";
+    this.escapement = error;
+  }
+}
+
+export const throwing = (error: EscapementError): CarriedError => new CarriedError(error);
+
 /** Normalise anything thrown into the taxonomy, so `catch` sites stay total. */
 export function toEscapementError(thrown: unknown, source?: string): EscapementError {
+  if (thrown instanceof CarriedError) {
+    return thrown.escapement.source === undefined && source !== undefined
+      ? { ...thrown.escapement, source }
+      : thrown.escapement;
+  }
   if (thrown instanceof InvariantViolation) {
     return fail(Failure.Fatal, "invariant.violated", thrown.message, undefined, source);
   }
