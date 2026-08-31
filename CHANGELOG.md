@@ -5,6 +5,38 @@ Notable changes to Escapement. The format follows
 [semver](https://semver.org/). While the major version is `0`, minor releases
 may change behaviour — including eval scores, which the baseline records.
 
+## [Unreleased]
+
+### Changed
+
+- **`Grader.grade` may now return a promise.** The signature widens to
+  `grade(context): Grade | Promise<Grade>`, and the harness awaits each grade
+  sequentially, in declaration order. Every grader shipped here is unchanged and
+  still synchronous — the sync path is not wrapped in a resolved promise — so the
+  eval baseline is untouched and the gate still scores 1.000. Breaking only for
+  code that calls `grade()` directly outside the harness.
+  ([ADR-0017](docs/adr/0017-asynchronous-graders.md))
+- `grader(id, fn, weight?)` accepts an async body, so the bespoke escape hatch
+  covers both kinds of grader.
+- A grader that *rejects* now fails its case the same way a grader that throws
+  already did: score `0`, and a reason naming the grader. A judge that times out
+  must not be able to silently pass the case it was meant to judge.
+
+### Fixed
+
+- **ADR-0013 advertised an extension point that did not exist.** It stated that
+  a rubric grader "would fit the `Grader` interface exactly" — but `grade` was
+  synchronous and the harness never awaited, so a grader that calls a model
+  could not be written against it at all. ADR-0017 makes the claim true; ADR-0013
+  keeps its text and gains a forward link, per
+  [ADR-0001](docs/adr/0001-record-architecture-decisions.md).
+
+### Added
+
+- Four tests covering the async grader path: awaiting, rejection handling,
+  declaration-order sequencing, and the guarantee that a synchronous body stays
+  synchronous.
+
 ## [0.1.1] — 2026-08-31
 
 Packaging and hygiene. No behaviour change: the eval baseline is untouched and

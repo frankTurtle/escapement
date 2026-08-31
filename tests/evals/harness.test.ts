@@ -96,6 +96,53 @@ describe("running a case", () => {
   });
 });
 
+describe("asynchronous graders", () => {
+  test("an async grader is awaited, not scored as a pending promise", async () => {
+    const slow = grader("slow", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return { score: 0.5, passed: true, reason: "took its time" };
+    });
+    const result = await runCase(base({ graders: [slow] }));
+    assert.equal(result.score, 0.5);
+    assert.equal(result.grades[0]?.graderId, "slow");
+    assert.equal(result.grades[0]?.reason, "took its time");
+  });
+
+  test("a grader that rejects fails the case rather than crashing the harness", async () => {
+    const unreachable = {
+      id: "unreachable",
+      grade: async () => {
+        throw new Error("judge unreachable");
+      },
+    };
+    const result = await runCase(base({ graders: [unreachable] }));
+    assert.equal(result.passed, false);
+    assert.equal(result.score, 0);
+    assert.equal(result.error, undefined, "a rejecting grader is not a harness error");
+    assert.match(result.grades[0]?.reason ?? "", /grader threw: judge unreachable/);
+  });
+
+  test("graders run in declaration order, so an I/O grader cannot fan out unasked", async () => {
+    const finished: string[] = [];
+    // Descending delays: run concurrently, these would finish in reverse.
+    const step = (id: string, delayMs: number) =>
+      grader(id, async () => {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        finished.push(id);
+        return { score: 1, passed: true, reason: "" };
+      });
+    await runCase(base({ graders: [step("first", 6), step("second", 3), step("third", 0)] }));
+    assert.deepEqual(finished, ["first", "second", "third"]);
+  });
+
+  test("a synchronous grader body stays synchronous", () => {
+    const sync = grader("sync", () => ({ score: 1, passed: true, reason: "" }));
+    const returned = sync.grade({} as never);
+    assert.equal(returned instanceof Promise, false, "the pure gate suite should not pay for a promise it never needs");
+    assert.deepEqual(returned, { graderId: "sync", score: 1, passed: true, reason: "" });
+  });
+});
+
 describe("graders discriminate", () => {
   test("endsAs fails when the run did not end that way", async () => {
     const result = await runCase(base({ script: [{ failWith: transient("x", "y") }], graders: [endsAs("completed")] }));

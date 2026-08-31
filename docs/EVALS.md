@@ -78,6 +78,15 @@ Scores are continuous in `[0, 1]` and `passed` is separate, because "still works
 but takes two extra tool calls" is exactly the movement a gate needs to see and a
 boolean cannot express it.
 
+### Graders that need I/O
+
+`grade` may return a promise ([ADR-0017](adr/0017-asynchronous-graders.md)), so a
+grader that has to call out — an LLM-as-judge rubric being the obvious one — can
+be written against the same interface. Nothing here ships one, and one does not
+belong in `eval:gate`: put it in a separate, slower suite where its cost and its
+non-determinism are visible. The harness grades sequentially in declaration
+order, and a rejected promise fails the case exactly like a thrown error.
+
 ## The gate
 
 `npm run eval:gate` compares the run to `evals/baseline.json`.
