@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.eval-out/
+.DS_Store
+.env
+.env.*
+!.env.example
