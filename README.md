@@ -369,6 +369,7 @@ alternatives written down. Index: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 | [0014](docs/adr/0014-model-provider-port.md) | The model is a port, and the scripted provider is first-class |
 | [0015](docs/adr/0015-small-tool-schema-and-readonly.md) | A deliberately small tool schema, and `readOnly` as a permission |
 | [0016](docs/adr/0016-publish-on-tag.md) | Publishing is automated from tags, with guards and no long-lived secret |
+| [0017](docs/adr/0017-asynchronous-graders.md) | Graders may be asynchronous, so a judge grader can exist outside the gate |
 
 ---
 

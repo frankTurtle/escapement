@@ -43,20 +43,25 @@ export async function runCase(evalCase: EvalCase): Promise<CaseResult> {
     });
 
     const context = { ledger, outcome, evalCase };
-    const grades: Grade[] = evalCase.graders.map((g) => {
+    // Sequential and awaited (ADR-0017). `grade` may return a promise, and a
+    // grader that does I/O should not silently fan out into a rate limit; the
+    // pure graders that make up the gate suite never suspend, so this costs
+    // them nothing.
+    const grades: Grade[] = [];
+    for (const g of evalCase.graders) {
       try {
-        return g.grade(context);
+        grades.push(await g.grade(context));
       } catch (thrown) {
-        // A grader that throws is a broken grader, and it must not be able to
-        // silently pass the case it was supposed to judge.
-        return {
+        // A grader that throws — or rejects — is a broken grader, and it must
+        // not be able to silently pass the case it was supposed to judge.
+        grades.push({
           graderId: g.id,
           score: 0,
           passed: false,
           reason: `grader threw: ${toEscapementError(thrown, g.id).message}`,
-        };
+        });
       }
-    });
+    }
 
     return {
       ...base,
