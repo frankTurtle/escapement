@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "suiteId": "escapement-core",
+  "tolerance": 0,
+  "aggregateTolerance": 0,
+  "aggregate": {
+    "score": 1,
+    "passed": 16,
+    "failed": 0
+  },
+  "cases": {
+    "bad-arguments-recovery": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "49bf230e"
+    },
+    "context-report-is-recorded": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "b8979d4d"
+    },
+    "context-under-pressure-keeps-the-latest-turn": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "b8979d4d"
+    },
+    "direct-answer": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "ed485d24"
+    },
+    "empty-response-repair": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "795dfa0c"
+    },
+    "fatal-not-retried": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "d78703e7"
+    },
+    "parallel-readonly-tools": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "1ab1a55b"
+    },
+    "readonly-tool-retried-by-runtime": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "bd19d95b"
+    },
+    "retry-exhaustion": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "68578973"
+    },
+    "single-tool-then-answer": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "b8979d4d"
+    },
+    "step-budget-halts-a-loop": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "0234d462"
+    },
+    "tool-budget-refuses-an-overrunning-batch": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "252dc58d"
+    },
+    "trajectory-shape-is-stable": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "d8197754"
+    },
+    "transient-retry": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "50ed27ca"
+    },
+    "unknown-tool-recovery": {
+      "score": 1,
+      "passed": true,
+      "critical": false,
+      "fingerprint": "882e212b"
+    },
+    "write-tool-never-retried": {
+      "score": 1,
+      "passed": true,
+      "critical": true,
+      "fingerprint": "f3aa5034"
+    }
+  }
+}
