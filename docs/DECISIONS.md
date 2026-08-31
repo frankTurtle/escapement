@@ -7,6 +7,8 @@ The process itself is [ADR-0001](adr/0001-record-architecture-decisions.md).
 | - | -------- | ------ |
 | [0001](adr/0001-record-architecture-decisions.md) | Record architecture decisions as ADRs | Accepted |
 | [0003](adr/0003-typescript-esm-zero-runtime-dependencies.md) | TypeScript + ESM, and zero runtime dependencies | Accepted |
+| [0004](adr/0004-determinism-substrate-injected-ports.md) | Determinism is a substrate — clock, randomness, and identity are injected | Accepted |
+| [0005](adr/0005-error-taxonomy.md) | Classify failures by who can fix them | Accepted |
 | [0010](adr/0010-gitflow-branching-model.md) | GitFlow branching model | Accepted |
 
 > Gaps in the numbering are ADRs that land with a later feature branch. Numbers
