@@ -1,0 +1,13 @@
+# Decision log
+
+Every architecturally significant choice in Escapement has a numbered ADR.
+The process itself is [ADR-0001](adr/0001-record-architecture-decisions.md).
+
+| # | Decision | Status |
+| - | -------- | ------ |
+| [0001](adr/0001-record-architecture-decisions.md) | Record architecture decisions as ADRs | Accepted |
+| [0003](adr/0003-typescript-esm-zero-runtime-dependencies.md) | TypeScript + ESM, and zero runtime dependencies | Accepted |
+| [0010](adr/0010-gitflow-branching-model.md) | GitFlow branching model | Accepted |
+
+> Gaps in the numbering are ADRs that land with a later feature branch. Numbers
+> are allocated when a decision is made, not when it is merged.

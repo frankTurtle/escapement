@@ -1,0 +1,30 @@
+{
+  "name": "escapement",
+  "version": "0.0.0",
+  "description": "Deterministic agent orchestration: an explicit state machine, a token-budgeted context assembler, and trajectory-grading evals with CI regression gates.",
+  "keywords": ["agents", "orchestration", "state-machine", "llm", "evals", "context-engineering", "deterministic", "ai"],
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.6.0" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "exports": {
+    ".": "./dist/index.js",
+    "./orchestrator": "./dist/orchestrator/index.js",
+    "./context": "./dist/context/index.js",
+    "./evals": "./dist/evals/index.js"
+  },
+  "bin": { "escapement": "./dist/evals/cli.js" },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.check.json",
+    "build": "tsc",
+    "test": "node --test --experimental-strip-types \"tests/**/*.test.ts\"",
+    "eval": "node --experimental-strip-types src/evals/cli.ts run",
+    "eval:gate": "node --experimental-strip-types src/evals/cli.ts gate",
+    "eval:baseline": "node --experimental-strip-types src/evals/cli.ts baseline",
+    "verify": "npm run typecheck && npm test && npm run eval:gate"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
