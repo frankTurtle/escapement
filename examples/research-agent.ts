@@ -9,7 +9,7 @@
  */
 import { run } from "../src/orchestrator/runtime.ts";
 import { replay, phasePath, toolSequence, contextReports } from "../src/orchestrator/ledger.ts";
-import { createRegistry, tool } from "../src/tools/registry.ts";
+import { createRegistry } from "../src/tools/registry.ts";
 import { scriptedProvider } from "../src/providers/scripted.ts";
 import { createAssembler } from "../src/context/assembler.ts";
 import { bm25Retriever } from "../src/context/retrieval.ts";
