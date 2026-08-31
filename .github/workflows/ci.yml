@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main, "release/**", "hotfix/**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck / test / build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: Typecheck (src + tests + evals)
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  deps-guard:
+    name: zero runtime dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert dependencies block is empty
+        run: |
+          count=$(node -p "Object.keys(require('./package.json').dependencies ?? {}).length")
+          if [ "$count" != "0" ]; then
+            echo "::error::Escapement ships zero runtime dependencies (ADR-0003)."
+            echo "Found $count entry/entries in package.json 'dependencies'."
+            echo "Define a port with an in-repo default instead, and put the real adapter in examples/."
+            exit 1
+          fi
+          echo "dependencies: 0 — OK"
+
+  branch-policy:
+    name: GitFlow branch policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: PRs into main come only from release/* or hotfix/*
+        if: github.base_ref == 'main'
+        run: |
+          head="${{ github.head_ref }}"
+          case "$head" in
+            release/*|hotfix/*) echo "OK: $head -> main" ;;
+            *) echo "::error::ADR-0010: only release/* and hotfix/* may merge into main. Got '$head'. Target develop instead."; exit 1 ;;
+          esac
+      - name: Eval baseline may only change on release/*
+        run: |
+          head="${{ github.head_ref }}"
+          base="origin/${{ github.base_ref }}"
+          if ! git diff --quiet "$base"...HEAD -- evals/baseline.json 2>/dev/null; then
+            case "$head" in
+              release/*) echo "OK: baseline refreshed on a release branch" ;;
+              *) echo "::error::ADR-0012: evals/baseline.json may only be re-recorded on a release/* branch. Leave the gate red and explain the movement in the PR description."; exit 1 ;;
+            esac
+          else
+            echo "baseline unchanged — OK"
+          fi
