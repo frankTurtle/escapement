@@ -34,6 +34,14 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Generated docs are current
+        run: |
+          npm run diagram
+          if ! git diff --quiet -- docs/STATE-MACHINE.md; then
+            echo "::error::docs/STATE-MACHINE.md is stale. Run 'npm run diagram' and commit the result."
+            git --no-pager diff -- docs/STATE-MACHINE.md
+            exit 1
+          fi
 
   deps-guard:
     name: zero runtime dependencies
