@@ -1,0 +1,133 @@
+name: Publish
+
+# Pushing a vX.Y.Z tag publishes that version to npm.
+#
+# Tagging is the release act (ADR-0010): a tag only ever reaches main via a
+# release/* or hotfix/* merge, so the tag is already the reviewed artifact.
+# This workflow adds no judgement of its own — it re-verifies, checks that the
+# tag and the manifest agree, and publishes.
+on:
+  push:
+    tags: ["v*"]
+
+# Never cancel a publish in flight. Publishing is not idempotent and a
+# half-cancelled upload is worse than a slow one.
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish to npm
+    runs-on: ubuntu-latest
+    # An environment gives you somewhere to add a required reviewer later, so a
+    # tag push can be made to pause for a human before anything is uploaded.
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # OIDC: npm trusted publishing, and build provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+
+      # Trusted publishing needs npm >= 11.5.1. The runner's bundled npm is
+      # usually new enough; this makes it deterministic rather than usually.
+      - name: Ensure a recent npm
+        run: |
+          npm install -g npm@^11
+          npm --version
+
+      - run: npm ci
+
+      # ---- Guards. Each one is a way a tag push can be wrong. ----
+
+      - name: The tag must be reachable from main
+        run: |
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag ${GITHUB_REF_NAME} points at a commit that is not on main."
+            echo "Only release/* and hotfix/* merges reach main (ADR-0010), so a tag"
+            echo "anywhere else has not been through the release process. Refusing to publish."
+            exit 1
+          fi
+          echo "OK: ${GITHUB_REF_NAME} is on main"
+
+      - name: The tag must match the version in package.json
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} says $tag_version but package.json says $pkg_version."
+            echo "Publishing would put $pkg_version on the registry under a $tag_version tag,"
+            echo "and the two would disagree forever. Fix the version bump on the release branch."
+            exit 1
+          fi
+          echo "OK: tag and manifest both say $pkg_version"
+          echo "VERSION=$pkg_version" >> "$GITHUB_ENV"
+
+      - name: The version must not already be published
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          if npm view "$name@$VERSION" version --prefer-online >/dev/null 2>&1; then
+            echo "::error::$name@$VERSION is already on the registry."
+            echo "npm versions are immutable. Bump the version on a release branch and tag again."
+            exit 1
+          fi
+          echo "OK: $name@$VERSION is unclaimed"
+          echo "PKG_NAME=$name" >> "$GITHUB_ENV"
+
+      # ---- Verify. prepublishOnly runs this too; running it here means a
+      #      failure is a red step rather than a cryptic publish abort. ----
+
+      - name: Verify
+        run: npm run verify
+
+      - name: Build
+        run: npm run build
+
+      - name: Inspect the tarball before it leaves the building
+        run: npm pack --dry-run
+
+      # ---- Publish. ----
+
+      - name: Configure npm auth
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+            echo "auth: granular access token from secrets.NPM_TOKEN"
+          else
+            echo "auth: npm trusted publishing (OIDC) — no long-lived secret in play"
+          fi
+
+      - name: Publish
+        run: |
+          # A prerelease must not become the default install. Anything with a
+          # hyphen in it (1.0.0-rc.1) goes out under the "next" dist-tag.
+          case "$VERSION" in
+            *-*) dist_tag="next" ;;
+            *)   dist_tag="latest" ;;
+          esac
+          echo "publishing $PKG_NAME@$VERSION under dist-tag '$dist_tag'"
+          npm publish --provenance --access public --tag "$dist_tag"
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "## Published \`$PKG_NAME@$VERSION\`"
+            echo
+            echo "- https://www.npmjs.com/package/$PKG_NAME/v/$VERSION"
+            echo "- Tag: \`$GITHUB_REF_NAME\`, commit \`${GITHUB_SHA:0:7}\`"
+            echo "- Build provenance attested via OIDC."
+          } >> "$GITHUB_STEP_SUMMARY"
