@@ -5,7 +5,11 @@ Notable changes to Escapement. The format follows
 [semver](https://semver.org/). While the major version is `0`, minor releases
 may change behaviour — including eval scores, which the baseline records.
 
-## [Unreleased]
+## [0.2.0] — 2026-08-31
+
+One API change, made to keep a promise ADR-0013 had already written down. The
+eval baseline is untouched and the gate still scores 1.000; 208 tests pass, four
+of them new.
 
 ### Changed
 
@@ -36,6 +40,8 @@ may change behaviour — including eval scores, which the baseline records.
 - Four tests covering the async grader path: awaiting, rejection handling,
   declaration-order sequencing, and the guarantee that a synchronous body stays
   synchronous.
+
+[0.2.0]: https://github.com/frankTurtle/escapement/releases/tag/v0.2.0
 
 ## [0.1.1] — 2026-08-31
 
