@@ -48,8 +48,14 @@ git tag -a v0.2.0 -m "Escapement 0.2.0"
 
 git checkout develop && git merge --no-ff release/0.2.0   # never skip this
 git branch -d release/0.2.0
-git push origin main develop --tags
+git push origin main develop --tags     # the tag push publishes to npm
 ```
+
+**The last line publishes.** Pushing a `vX.Y.Z` tag triggers
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml), which
+re-verifies, checks the tag against `package.json`, refuses a version that is
+already on the registry, and publishes with provenance
+([ADR-0016](adr/0016-publish-on-tag.md)). Push the tag only when you mean it.
 
 The back-merge into `develop` is the step people forget. Skip it and the version
 bump, the changelog, and the refreshed baseline exist only on `main`, so the next
@@ -79,6 +85,7 @@ we guarantee the bug does not come back.
 | PRs target `develop` | Repository default branch |
 | No direct pushes to `main` | Branch protection |
 | `evals/baseline.json` changes only on `release/*` | `branch-policy` job in CI |
+| Only tags on `main` publish, and only at the matching version | `publish` workflow guards |
 | `dependencies` stays empty | `deps-guard` job in CI |
 | Every `main` commit is tagged | Release checklist, above |
 

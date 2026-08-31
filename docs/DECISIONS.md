@@ -20,6 +20,7 @@ The process itself is [ADR-0001](adr/0001-record-architecture-decisions.md).
 | [0013](adr/0013-trajectory-graders-over-run-ledger.md) | Grade trajectories, with pure functions over the ledger | Accepted |
 | [0014](adr/0014-model-provider-port.md) | The model is a port, and the scripted provider is first-class | Accepted |
 | [0015](adr/0015-small-tool-schema-and-readonly.md) | A deliberately small tool schema, and `readOnly` as a machine-readable permission | Accepted |
+| [0016](adr/0016-publish-on-tag.md) | Publishing is automated from tags, with guards and no long-lived secret | Accepted |
 
 > Gaps in the numbering are ADRs that land with a later feature branch. Numbers
 > are allocated when a decision is made, not when it is merged.
