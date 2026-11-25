@@ -373,8 +373,10 @@ npm run eval:baseline # re-record — release/* branches only
 Stated plainly, because a library that only lists its strengths is selling
 something.
 
-- **Multi-agent topologies.** One agent, one loop. If you need a supervisor over
-  five specialists, use LangGraph.
+- **Concurrent multi-agent topologies.** `pipeline()` runs agents one after
+  another, with routing and rework loops. Fan-out, a supervisor dispatching to
+  five specialists at once, or a graph of agents is not modelled; if you need
+  that, use LangGraph.
 - **Streaming.** `generate` resolves once with a complete message. A
   `ReadableStream` is not JSON and therefore not replayable.
 - **Semantic retrieval.** The default is BM25, and it does not stem — it cannot
@@ -387,7 +389,10 @@ something.
 - **Model-quality evals.** The suite grades orchestration. Grading answers needs
   live runs across seeds, and that has no business gating a pull request.
 - **Provider adapters.** Zero dependencies means no model SDK. Wiring one is
-  about ten lines you own.
+  about ten lines you own. A client that only returns text can use
+  `textProvider(client)`, which asks for a JSON turn and parses it, turning a
+  malformed reply into a repair turn rather than a failure
+  ([ADR-0022](docs/adr/0022-json-turn-protocol-for-text-models.md)).
 
 ---
 
@@ -415,6 +420,11 @@ alternatives written down. Index: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 | [0015](docs/adr/0015-small-tool-schema-and-readonly.md) | A deliberately small tool schema, and `readOnly` as a permission |
 | [0016](docs/adr/0016-publish-on-tag.md) | Publishing is automated from tags, with guards and no long-lived secret |
 | [0017](docs/adr/0017-asynchronous-graders.md) | Graders may be asynchronous, so a judge grader can exist outside the gate |
+| [0018](docs/adr/0018-re-execution-from-the-ledger.md) | Re-execute a run from its ledger, and build eval cases from one |
+| [0019](docs/adr/0019-suspended-phase-and-resume.md) | A `suspended` phase for approval, resumed from the ledger |
+| [0020](docs/adr/0020-pipelines-of-runs.md) | Multi-agent pipelines chain runs and link their ledgers |
+| [0021](docs/adr/0021-schema-typed-tool-handlers.md) | Tool handlers are typed from their schema |
+| [0022](docs/adr/0022-json-turn-protocol-for-text-models.md) | A JSON turn protocol for models without native tool calls |
 
 ---
 
