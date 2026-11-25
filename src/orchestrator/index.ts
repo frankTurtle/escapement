@@ -63,3 +63,15 @@ export { renderStateMachineDoc } from "./doc.ts";
 
 export { replayProvider, recordedTools, scriptFromLedger, reexecute } from "./reexecute.ts";
 export type { ReplayProvider, ReplayProviderOptions, ReexecuteOptions, ReexecuteResult } from "./reexecute.ts";
+
+export { pipeline, verifyPipeline, handoffOf } from "./pipeline.ts";
+export type {
+  Handoff,
+  StageInput,
+  StageRun,
+  PipelineStage,
+  PipelineOptions,
+  PipelineStatus,
+  PipelineResult,
+  PipelineProblem,
+} from "./pipeline.ts";

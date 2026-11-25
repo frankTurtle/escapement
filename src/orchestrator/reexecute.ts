@@ -244,6 +244,7 @@ export async function reexecute(ledger: RunLedger, options: ReexecuteOptions = {
     runId: ledger.runId,
     seed: ledger.seed,
     config: ledger.config,
+    ...(ledger.parentRunId !== undefined ? { parentRunId: ledger.parentRunId } : {}),
     deps: { clock: manualClock(ledger.startedAt), rng: seededRng(ledger.seed), ids: sequentialIds() },
   });
 

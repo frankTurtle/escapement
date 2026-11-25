@@ -185,6 +185,24 @@ first.outcome; // { status: "suspended", awaiting: { kind: "approval", calls: [.
 const done = await resume(first.ledger, { decision: { approved: true, by: "ana" }, provider, tools });
 ```
 
+**Several agents.** `pipeline({ id, start, stages, next })` runs one agent per
+stage, in the order a routing function picks, and links each run to the one
+before with `parentRunId` in its ledger. A stage builds its run from the earlier
+handoffs; `next` returns the next stage or `null`, and can loop back for rework
+up to `maxHandoffs`. A run that fails, halts or suspends stops the pipeline with
+that status. `verifyPipeline(result)` checks every link and digest
+([ADR-0020](docs/adr/0020-pipelines-of-runs.md)).
+
+```ts
+const result = await pipeline({
+  id: "fix-1142",
+  start: "implement",
+  stages: { implement, review }, // ({ prior }) => run options for that agent
+  next: (h) => (h.stage === "implement" ? "review" : approved(h) ? null : "implement"),
+  maxHandoffs: 6,
+});
+```
+
 **Replay, and re-execution.** `replay(ledger)` runs the recorded events back
 through the reducer. `reexecute(ledger, { tools })` goes further: it runs the
 whole run again with `replayProvider(ledger)` serving the model's recorded turns

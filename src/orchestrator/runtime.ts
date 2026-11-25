@@ -46,6 +46,9 @@ export type RunOptions = {
   readonly deps?: Partial<RunDeps>;
   readonly seed?: string;
   readonly runId?: string;
+  /** The run this one follows, as in a pipeline (ADR-0020). Recorded in the
+   *  ledger header. */
+  readonly parentRunId?: string;
   readonly signal?: AbortSignal;
   /** Called as each transition is recorded. For live tracing; the ledger is
    *  the durable record. */
@@ -103,6 +106,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
     seed,
     goal: options.goal,
     startedAt,
+    parentRunId: options.parentRunId,
     state: initialState(runId, options.goal, startedAt),
     history: [],
     first: { type: EventType.RunStarted, at: startedAt, goal: options.goal },
@@ -117,7 +121,7 @@ export type ResumeDecision = {
   readonly note?: string;
 };
 
-export type ResumeOptions = Omit<RunOptions, "goal" | "runId" | "seed" | "config"> & {
+export type ResumeOptions = Omit<RunOptions, "goal" | "runId" | "seed" | "config" | "parentRunId"> & {
   readonly decision: ResumeDecision;
 };
 
@@ -154,6 +158,7 @@ export async function resume(ledger: RunLedger, options: ResumeOptions): Promise
     seed: ledger.seed,
     goal: ledger.goal,
     startedAt: ledger.startedAt,
+    parentRunId: ledger.parentRunId,
     state: replayed.state,
     history: ledger.entries,
     first: { type: EventType.RunResumed, at: clock.now(), approved, by, ...(note !== undefined ? { note } : {}) },
@@ -171,6 +176,7 @@ type Drive = {
   readonly seed: string;
   readonly goal: string;
   readonly startedAt: number;
+  readonly parentRunId: string | undefined;
   readonly state: RunState;
   readonly history: readonly LedgerEntry[];
   readonly first: RunEvent;
@@ -362,6 +368,7 @@ async function drive(setup: Drive): Promise<RunResult> {
     runId,
     goal: setup.goal,
     seed,
+    ...(setup.parentRunId !== undefined ? { parentRunId: setup.parentRunId } : {}),
     config,
     startedAt,
     finishedAt,
