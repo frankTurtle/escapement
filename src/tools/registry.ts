@@ -3,7 +3,7 @@ import type { Clock } from "../core/clock.ts";
 import type { ToolCall } from "../core/messages.ts";
 import { correctable, toEscapementError, invariant, type EscapementError } from "../core/errors.ts";
 import { ok, err, type Result } from "../core/result.ts";
-import { renderSchema, validateArgs, type ObjectSchema } from "./schema.ts";
+import { renderSchema, validateArgs, type InferArgs, type ObjectSchema } from "./schema.ts";
 
 export type ToolContext = {
   readonly runId: string;
@@ -94,21 +94,46 @@ export function createRegistry(tools: readonly ToolDefinition[]): ToolRegistry {
   };
 }
 
-/** Convenience for the common case: a handler that cannot fail. */
-export function tool(
+/**
+ * Convenience for the common case: a handler that cannot fail.
+ *
+ * `args` is typed from the schema (ADR-0021): write the schema inline, or
+ * declare it `as const`, and the handler reads `args.path` as a `string`
+ * without a cast. A schema annotated as plain `ObjectSchema` gives
+ * `JsonObject`, as it always has.
+ */
+export function tool<const S extends ObjectSchema>(
   name: string,
   description: string,
-  schema: ObjectSchema,
-  handler: (args: JsonObject, ctx: ToolContext) => JsonValue | Promise<JsonValue>,
+  schema: S,
+  handler: (args: InferArgs<S>, ctx: ToolContext) => JsonValue | Promise<JsonValue>,
   options: { readonly readOnly?: boolean; readonly requiresApproval?: boolean } = {},
 ): ToolDefinition {
   const def: ToolDefinition = {
     name,
     description,
     schema,
-    handler: async (args, ctx) => ok(await handler(args, ctx)),
+    // The registry validated `args` against `schema` before calling us, so this
+    // is the one place the cast is sound.
+    handler: async (args, ctx) => ok(await handler(args as InferArgs<S>, ctx)),
     ...(options.readOnly === undefined ? {} : { readOnly: options.readOnly }),
     ...(options.requiresApproval === undefined ? {} : { requiresApproval: options.requiresApproval }),
   };
   return def;
+}
+
+/** A tool definition whose handler's `args` are typed from its schema (ADR-0021). */
+export type TypedToolDefinition<S extends ObjectSchema> = Omit<ToolDefinition, "schema" | "handler"> & {
+  readonly schema: S;
+  readonly handler: (args: InferArgs<S>, ctx: ToolContext) => ToolOutcome | Promise<ToolOutcome>;
+};
+
+/**
+ * Define a tool whose handler returns a full `ToolOutcome`, with `args` typed
+ * from the schema. Use it when some failures are `correctable` rather than
+ * bugs; use `tool()` when the handler cannot fail.
+ */
+export function defineTool<const S extends ObjectSchema>(definition: TypedToolDefinition<S>): ToolDefinition {
+  const { handler, ...rest } = definition;
+  return { ...rest, handler: (args, ctx) => handler(args as InferArgs<S>, ctx) };
 }

@@ -25,6 +25,7 @@ The process itself is [ADR-0001](adr/0001-record-architecture-decisions.md).
 | [0018](adr/0018-re-execution-from-the-ledger.md) | Re-execute a run from its ledger, and build eval cases from one | Accepted |
 | [0019](adr/0019-suspended-phase-and-resume.md) | A `suspended` phase for approval, resumed from the ledger | Accepted |
 | [0020](adr/0020-pipelines-of-runs.md) | Multi-agent pipelines chain runs and link their ledgers | Accepted |
+| [0021](adr/0021-schema-typed-tool-handlers.md) | Tool handlers are typed from their schema | Accepted |
 
 > Gaps in the numbering are ADRs that land with a later feature branch. Numbers
 > are allocated when a decision is made, not when it is merged.

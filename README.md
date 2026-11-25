@@ -79,7 +79,7 @@ const tools = createRegistry([
     "search",
     "Search the docs.",
     { type: "object", properties: { q: { type: "string" } }, required: ["q"] },
-    (args) => index.query(String(args.q)),
+    (args) => index.query(args.q), // args.q is a string, typed from the schema
     { readOnly: true },   // declares: safe to run concurrently, safe to retry
   ),
 ]);
@@ -96,7 +96,7 @@ const { outcome, ledger } = await run({
   config: { budget: { maxSteps: 8, maxToolCalls: 20 } },
 });
 
-outcome.status;              // "completed" | "failed" | "halted"
+outcome.status;              // "completed" | "failed" | "halted" | "suspended"
 ledger.usage.modelCalls;     // ≤ 8, guaranteed by the reducer, not by the loop
 replay(ledger).ok;           // true — the run reproduces exactly
 ```
