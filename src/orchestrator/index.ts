@@ -1,4 +1,13 @@
-export { Phase, EventType, TRANSITIONS, TERMINAL_PHASES, isTerminal, isLegalTransition, allowedEvents } from "./phases.ts";
+export {
+  Phase,
+  EventType,
+  TRANSITIONS,
+  TERMINAL_PHASES,
+  isTerminal,
+  isAtRest,
+  isLegalTransition,
+  allowedEvents,
+} from "./phases.ts";
 export type { TransitionTable } from "./phases.ts";
 
 export type { RunEvent } from "./events.ts";
@@ -46,8 +55,8 @@ export type { RunLedger, LedgerEntry, ReplayResult, Divergence, Recorder, ToolCa
 export { passthroughAssembler, trimFinalizer } from "./assembler.ts";
 export type { ContextAssembler, AssemblyRequest, Finalizer } from "./assembler.ts";
 
-export { run } from "./runtime.ts";
-export type { RunOptions, RunResult, RunDeps } from "./runtime.ts";
+export { run, resume } from "./runtime.ts";
+export type { RunOptions, RunResult, RunDeps, ResumeOptions, ResumeDecision } from "./runtime.ts";
 
 export { toMermaid, toMarkdownTable } from "./diagram.ts";
 export { renderStateMachineDoc } from "./doc.ts";

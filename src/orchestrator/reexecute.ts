@@ -11,7 +11,7 @@ import type { ContextAssembler, Finalizer } from "./assembler.ts";
 import type { RunEvent } from "./events.ts";
 import type { RunLedger } from "./ledger.ts";
 import type { AssembledContext } from "./state.ts";
-import { run, type RunResult } from "./runtime.ts";
+import { resume, run, type RunResult } from "./runtime.ts";
 
 type ModelEvent = Extract<RunEvent, { type: "model.succeeded" | "model.failed" }>;
 type RecordedTurn = { readonly event: ModelEvent; readonly context: AssembledContext | null; readonly seq: number };
@@ -193,6 +193,7 @@ export function recordedTools(ledger: RunLedger, definitions?: readonly ToolDefi
     schema: { type: "object", properties: {} },
     handler: handlerFor(name),
     readOnly: records.some((r) => r.name === name && r.attempts > 1),
+    ...(ledger.config.approvalRequired?.includes(name) ? { requiresApproval: true } : {}),
   }));
 }
 
@@ -223,6 +224,9 @@ export type ReexecuteResult = RunResult & {
  * clock starting at `startedAt`, so a run recorded on a manual clock (as the
  * eval harness does) re-executes byte for byte. A run recorded on the system
  * clock re-executes with the same events but different timestamps.
+ *
+ * A ledger that was suspended and resumed (ADR-0019) is resumed again at the
+ * same points with the same decisions.
  */
 export async function reexecute(ledger: RunLedger, options: ReexecuteOptions = {}): Promise<ReexecuteResult> {
   const provider = replayProvider(ledger, { verifyRequests: options.verifyRequests ?? true });
@@ -234,7 +238,7 @@ export async function reexecute(ledger: RunLedger, options: ReexecuteOptions = {
     ...(options.finalizer ? { finalizer: options.finalizer } : {}),
   };
 
-  const result: RunResult = await run({
+  let result: RunResult = await run({
     ...shared,
     goal: ledger.goal,
     runId: ledger.runId,
@@ -242,6 +246,18 @@ export async function reexecute(ledger: RunLedger, options: ReexecuteOptions = {
     config: ledger.config,
     deps: { clock: manualClock(ledger.startedAt), rng: seededRng(ledger.seed), ids: sequentialIds() },
   });
+
+  // Each recorded resume, again, on a clock that starts where that one did.
+  for (const entry of ledger.entries) {
+    if (entry.event.type !== "run.resumed") continue;
+    if (result.outcome.status !== "suspended") break;
+    const { approved, by, note } = entry.event;
+    result = await resume(result.ledger, {
+      ...shared,
+      decision: { approved, by, ...(note !== undefined ? { note } : {}) },
+      deps: { clock: manualClock(entry.at), rng: seededRng(ledger.seed), ids: sequentialIds() },
+    });
+  }
 
   const firstDifference = compareLedgers(ledger, result.ledger);
   return { ...result, identical: firstDifference === null, firstDifference };

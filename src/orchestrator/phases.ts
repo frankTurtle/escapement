@@ -22,6 +22,9 @@ export const Phase = {
   Backoff: "backoff",
   /** Turning a draft answer into the run's output. */
   Finalize: "finalize",
+  /** Waiting for a person to approve the tool calls the model asked for. Not
+   *  terminal: `resume()` continues the run from its ledger (ADR-0019). */
+  Suspended: "suspended",
 
   /** Terminal: produced an answer. */
   Done: "done",
@@ -36,6 +39,9 @@ export type Phase = (typeof Phase)[keyof typeof Phase];
 export const TERMINAL_PHASES: readonly Phase[] = [Phase.Done, Phase.Failed, Phase.Halted];
 
 export const isTerminal = (phase: Phase): boolean => TERMINAL_PHASES.includes(phase);
+
+/** Where the runtime stops: a terminal phase, or `suspended` (ADR-0019). */
+export const isAtRest = (phase: Phase): boolean => isTerminal(phase) || phase === Phase.Suspended;
 
 export const EventType = {
   RunStarted: "run.started",
@@ -52,6 +58,7 @@ export const EventType = {
   BudgetExceeded: "budget.exceeded",
   Fault: "fault",
   RunCancelled: "run.cancelled",
+  RunResumed: "run.resumed",
 } as const;
 
 export type EventType = (typeof EventType)[keyof typeof EventType];
@@ -95,7 +102,8 @@ export const TRANSITIONS: TransitionTable = Object.freeze({
 
   [Phase.Route]: {
     ...ANY_PHASE,
-    [EventType.RouteTools]: [Phase.Tools, Phase.Halted],
+    // `suspended` when any call needs approval (ADR-0019).
+    [EventType.RouteTools]: [Phase.Tools, Phase.Halted, Phase.Suspended],
     [EventType.RouteAnswer]: [Phase.Finalize],
     [EventType.RouteRepair]: [Phase.Observe],
   },
@@ -109,6 +117,9 @@ export const TRANSITIONS: TransitionTable = Object.freeze({
   [Phase.Backoff]: { ...ANY_PHASE, [EventType.BackoffElapsed]: [Phase.Model] },
 
   [Phase.Finalize]: { ...ANY_PHASE, [EventType.OutputFinalized]: [Phase.Done] },
+
+  // Approved: run the pending calls. Declined: tell the model, and go on.
+  [Phase.Suspended]: { ...ANY_PHASE, [EventType.RunResumed]: [Phase.Tools, Phase.Observe] },
 
   // Terminal phases accept nothing. A run that reaches one is over.
   [Phase.Done]: {},

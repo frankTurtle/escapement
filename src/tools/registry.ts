@@ -29,6 +29,12 @@ export type ToolDefinition = {
    * safe for a tool that charges a credit card, so the default is `false`.
    */
   readonly readOnly?: boolean;
+  /**
+   * A person must approve each call before it runs (ADR-0019). The run
+   * suspends at the call and `resume()` carries the decision. Read by the
+   * orchestrator, like `readOnly`.
+   */
+  readonly requiresApproval?: boolean;
 };
 
 export type ToolRegistry = {
@@ -94,7 +100,7 @@ export function tool(
   description: string,
   schema: ObjectSchema,
   handler: (args: JsonObject, ctx: ToolContext) => JsonValue | Promise<JsonValue>,
-  options: { readonly readOnly?: boolean } = {},
+  options: { readonly readOnly?: boolean; readonly requiresApproval?: boolean } = {},
 ): ToolDefinition {
   const def: ToolDefinition = {
     name,
@@ -102,6 +108,7 @@ export function tool(
     schema,
     handler: async (args, ctx) => ok(await handler(args, ctx)),
     ...(options.readOnly === undefined ? {} : { readOnly: options.readOnly }),
+    ...(options.requiresApproval === undefined ? {} : { requiresApproval: options.requiresApproval }),
   };
   return def;
 }

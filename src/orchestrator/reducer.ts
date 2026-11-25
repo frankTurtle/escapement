@@ -122,6 +122,13 @@ export function reduce(state: RunState, event: RunEvent, config: RunConfig): Tra
           ),
         );
       }
+      const gated = config.approvalRequired ?? [];
+      if (event.calls.some((c) => gated.includes(c.name))) {
+        // Stop before the effect: approval is about whether the call may run
+        // at all, so it cannot be asked for once it is running (ADR-0019).
+        const outcome: Outcome = { status: "suspended", awaiting: { kind: "approval", calls: event.calls } };
+        return step({ ...base, pendingCalls: event.calls, outcome }, event, Phase.Suspended, []);
+      }
       const next: RunState = { ...base, pendingCalls: event.calls };
       return step(next, event, Phase.Tools, [{ kind: "execute-tools", calls: event.calls }]);
     }
@@ -163,6 +170,23 @@ export function reduce(state: RunState, event: RunEvent, config: RunConfig): Tra
       return step(base, event, Phase.Model, [
         { kind: "call-model", context: state.context, attempt: state.attempt },
       ]);
+
+    case EventType.RunResumed: {
+      // The gap between suspending and resuming is somebody deciding, not the
+      // run working, so it is kept off the wall-clock budget.
+      const resumed: RunState = {
+        ...base,
+        pausedMs: state.pausedMs + Math.max(0, at - state.now),
+        outcome: null,
+      };
+      if (event.approved) {
+        return step(resumed, event, Phase.Tools, [{ kind: "execute-tools", calls: state.pendingCalls }]);
+      }
+      const reason = `Not run: ${event.by} declined to approve this call.${event.note ? ` ${event.note}` : ""}`;
+      const messages = state.pendingCalls.map((c) => toolResult(c, reason, true));
+      // A decline is information, not a mistake: no corrective turn, no failure.
+      return toObserve({ ...resumed, pendingCalls: [] }, event, messages, { corrective: false, failed: false });
+    }
 
     case EventType.OutputFinalized: {
       const outcome: Outcome = { status: "completed", output: event.output };
@@ -331,7 +355,7 @@ export function checkBudget(state: RunState, budget: Budget): EscapementError | 
       limit: budget.maxTotalTokens,
     });
   }
-  const elapsed = state.now - state.startedAt;
+  const elapsed = state.now - state.startedAt - state.pausedMs;
   if (elapsed >= budget.maxWallClockMs) {
     return budgetExceeded("budget.wall_clock", `Wall-clock budget exhausted after ${elapsed}ms.`, {
       elapsedMs: elapsed,

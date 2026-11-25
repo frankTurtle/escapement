@@ -54,6 +54,10 @@ Notes that save time:
 - Mark a case `critical: true` when its failure should fail the gate whatever the
   scores did. Reserve it for the promises on the tin — budgets enforced, fatal
   errors not retried, runs replay exactly.
+- A case whose tools need approval suspends. List the decisions in
+  `approvals: [{ approved: true, by: "reviewer" }]` and the harness resumes
+  with each in turn; with none left, the case ends `suspended`, which
+  `endsAs("suspended")` can assert.
 - Add `replaysExactly()` to every case. It is nearly free and it is what keeps
   the determinism claim honest.
 

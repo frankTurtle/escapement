@@ -129,6 +129,10 @@ stateDiagram-v2
   model --> failed: retries exhausted / fatal
   tools --> failed: tools.completed (fatal)
 
+  route --> suspended: route.tools (needs approval)
+  suspended --> tools: run.resumed (approved)
+  suspended --> observe: run.resumed (declined)
+
   assemble --> halted: budget
   route --> halted: budget
   observe --> halted: budget
@@ -164,6 +168,22 @@ The load-bearing distinction is `correctable`. A tool called with a missing
 argument is **not an exception** — it is an observation, handed back so the model
 can fix its own mistake. Retrying it verbatim is how you get the identical broken
 call three times and then an abort.
+
+**Approval.** A tool marked `requiresApproval` never runs on the model's say-so.
+The run stops in `suspended` before the call, and returns its ledger. Store it;
+when someone decides, `resume(ledger, { decision: { approved, by, note } })`
+rebuilds the state from the ledger and carries on. Approved calls run; declined
+ones go back to the model as an observation naming who declined. Time spent
+waiting does not count against the wall-clock budget
+([ADR-0019](docs/adr/0019-suspended-phase-and-resume.md)).
+
+```ts
+const commit = tool("commit", "Commit the change.", schema, doCommit, { requiresApproval: true });
+const first = await run({ goal, provider, tools: createRegistry([commit]) });
+first.outcome; // { status: "suspended", awaiting: { kind: "approval", calls: [...] } }
+
+const done = await resume(first.ledger, { decision: { approved: true, by: "ana" }, provider, tools });
+```
 
 **Replay, and re-execution.** `replay(ledger)` runs the recorded events back
 through the reducer. `reexecute(ledger, { tools })` goes further: it runs the

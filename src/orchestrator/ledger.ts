@@ -45,8 +45,12 @@ export type Recorder = {
   readonly entries: readonly LedgerEntry[];
 };
 
-export function createRecorder(onEntry?: (entry: LedgerEntry) => void): Recorder {
-  const entries: LedgerEntry[] = [];
+export function createRecorder(
+  onEntry?: (entry: LedgerEntry) => void,
+  history: readonly LedgerEntry[] = [],
+): Recorder {
+  // `history` is a resumed run's earlier entries; numbering carries on (ADR-0019).
+  const entries: LedgerEntry[] = [...history];
   return {
     entries,
     record: (partial) => {

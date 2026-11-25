@@ -5,12 +5,12 @@ import { Failure, budgetExceeded, invariant, toEscapementError } from "../core/e
 import type { Message, ToolCall } from "../core/messages.ts";
 import type { ModelProvider } from "../providers/provider.ts";
 import { createRegistry, type ToolRegistry } from "../tools/registry.ts";
-import { EventType, isTerminal } from "./phases.ts";
+import { EventType, Phase, isAtRest } from "./phases.ts";
 import type { RunEvent } from "./events.ts";
 import type { Effect } from "./effects.ts";
 import { effectKinds } from "./effects.ts";
 import { reduce } from "./reducer.ts";
-import { createRecorder, LEDGER_VERSION, type LedgerEntry, type RunLedger } from "./ledger.ts";
+import { createRecorder, replay, LEDGER_VERSION, type LedgerEntry, type RunLedger } from "./ledger.ts";
 import {
   DEFAULT_CONFIG,
   initialState,
@@ -37,7 +37,12 @@ export type RunOptions = {
   readonly tools?: ToolRegistry;
   readonly assembler?: ContextAssembler;
   readonly finalizer?: Finalizer;
-  readonly config?: { readonly budget?: Partial<Budget>; readonly retry?: Partial<RetryPolicy> };
+  readonly config?: {
+    readonly budget?: Partial<Budget>;
+    readonly retry?: Partial<RetryPolicy>;
+    /** Overrides the names taken from `ToolDefinition.requiresApproval`. */
+    readonly approvalRequired?: readonly string[];
+  };
   readonly deps?: Partial<RunDeps>;
   readonly seed?: string;
   readonly runId?: string;
@@ -67,22 +72,119 @@ export async function run(options: RunOptions): Promise<RunResult> {
   const seed = options.seed ?? "escapement";
   const rng = options.deps?.rng ?? seededRng(seed);
   const ids = options.deps?.ids ?? sequentialIds();
+  const registry = options.tools ?? createRegistry([]);
 
+  const approvalRequired =
+    options.config?.approvalRequired ??
+    registry
+      .list()
+      .filter((t) => t.requiresApproval === true)
+      .map((t) => t.name)
+      .sort();
   const config: RunConfig = {
     budget: { ...DEFAULT_CONFIG.budget, ...options.config?.budget },
     retry: { ...DEFAULT_CONFIG.retry, ...options.config?.retry },
+    // Only present when used, so a run without gated tools records the same
+    // config, byte for byte, as it always has.
+    ...(approvalRequired.length > 0 ? { approvalRequired: [...approvalRequired] } : {}),
   };
-
-  const registry = options.tools ?? createRegistry([]);
-  const assemble = options.assembler ?? passthroughAssembler;
-  const finalize = options.finalizer ?? trimFinalizer;
 
   const runId = options.runId ?? ids.next("run");
   const startedAt = clock.now();
-  const recorder = createRecorder(options.onEntry);
 
-  let state: RunState = initialState(runId, options.goal, startedAt);
-  const events: RunEvent[] = [{ type: EventType.RunStarted, at: startedAt, goal: options.goal }];
+  return drive({
+    options,
+    registry,
+    clock,
+    rng,
+    ids,
+    config,
+    runId,
+    seed,
+    goal: options.goal,
+    startedAt,
+    state: initialState(runId, options.goal, startedAt),
+    history: [],
+    first: { type: EventType.RunStarted, at: startedAt, goal: options.goal },
+  });
+}
+
+/** What a person decided about a suspended run's pending tool calls (ADR-0019). */
+export type ResumeDecision = {
+  readonly approved: boolean;
+  /** Who decided. Required, and recorded in the ledger. */
+  readonly by: string;
+  readonly note?: string;
+};
+
+export type ResumeOptions = Omit<RunOptions, "goal" | "runId" | "seed" | "config"> & {
+  readonly decision: ResumeDecision;
+};
+
+/**
+ * Continue a suspended run from its ledger (ADR-0019).
+ *
+ * The ledger is the checkpoint: replaying it rebuilds the exact state the run
+ * stopped in, and the decision arrives as a `run.resumed` event. Goal, run id,
+ * seed and config come from the ledger; the provider, tools and assembler must
+ * be the ones the run started with, or what follows is a different run. The
+ * returned ledger holds the whole history, so `replay()` covers both halves.
+ */
+export async function resume(ledger: RunLedger, options: ResumeOptions): Promise<RunResult> {
+  const replayed = replay(ledger);
+  invariant(replayed.ok, "the ledger does not replay, so it cannot be resumed", {
+    divergence: replayed.divergence ? { ...replayed.divergence } : null,
+  });
+  invariant(replayed.state.phase === Phase.Suspended, "only a suspended run can be resumed", {
+    phase: replayed.state.phase,
+  });
+  invariant(options.decision.by.trim().length > 0, "a resume decision must say who made it");
+
+  const clock = options.deps?.clock ?? systemClock;
+  const { approved, by, note } = options.decision;
+
+  return drive({
+    options,
+    registry: options.tools ?? createRegistry([]),
+    clock,
+    rng: options.deps?.rng ?? seededRng(ledger.seed),
+    ids: options.deps?.ids ?? sequentialIds(),
+    config: ledger.config,
+    runId: ledger.runId,
+    seed: ledger.seed,
+    goal: ledger.goal,
+    startedAt: ledger.startedAt,
+    state: replayed.state,
+    history: ledger.entries,
+    first: { type: EventType.RunResumed, at: clock.now(), approved, by, ...(note !== undefined ? { note } : {}) },
+  });
+}
+
+type Drive = {
+  readonly options: Omit<RunOptions, "goal">;
+  readonly registry: ToolRegistry;
+  readonly clock: Clock;
+  readonly rng: Rng;
+  readonly ids: IdFactory;
+  readonly config: RunConfig;
+  readonly runId: string;
+  readonly seed: string;
+  readonly goal: string;
+  readonly startedAt: number;
+  readonly state: RunState;
+  readonly history: readonly LedgerEntry[];
+  readonly first: RunEvent;
+};
+
+/** The loop `run` and `resume` share: events in, effects out, until the run is at rest. */
+async function drive(setup: Drive): Promise<RunResult> {
+  const { options, registry, clock, rng, ids, config, runId, seed, startedAt } = setup;
+  const assemble = options.assembler ?? passthroughAssembler;
+  const finalize = options.finalizer ?? trimFinalizer;
+  const recorder = createRecorder(options.onEntry, setup.history);
+
+  let state: RunState = setup.state;
+  const events: RunEvent[] = [];
   const effects: Effect[] = [];
 
   const assemblyRequest = (): AssemblyRequest => ({
@@ -107,7 +209,10 @@ export async function run(options: RunOptions): Promise<RunResult> {
     effects.push(...transition.effects);
   };
 
-  while (!isTerminal(state.phase)) {
+  // Applied before the loop: a resumed run starts at rest, in `suspended`.
+  apply(setup.first);
+
+  while (!isAtRest(state.phase)) {
     const queued = events.shift();
     if (queued !== undefined) {
       apply(queued);
@@ -128,8 +233,8 @@ export async function run(options: RunOptions): Promise<RunResult> {
 
     // Wall-clock is the one limit that can be breached *during* an effect, so
     // the runtime detects it here. The reducer still decides what it means.
-    const elapsed = clock.now() - startedAt;
-    if (elapsed >= config.budget.maxWallClockMs && !isTerminal(state.phase)) {
+    const elapsed = clock.now() - startedAt - state.pausedMs;
+    if (elapsed >= config.budget.maxWallClockMs && !isAtRest(state.phase)) {
       events.push({
         type: EventType.BudgetExceeded,
         at: clock.now(),
@@ -255,7 +360,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
   const ledger: RunLedger = {
     version: LEDGER_VERSION,
     runId,
-    goal: options.goal,
+    goal: setup.goal,
     seed,
     config,
     startedAt,

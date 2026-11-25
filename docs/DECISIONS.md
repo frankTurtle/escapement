@@ -23,6 +23,7 @@ The process itself is [ADR-0001](adr/0001-record-architecture-decisions.md).
 | [0016](adr/0016-publish-on-tag.md) | Publishing is automated from tags, with guards and no long-lived secret | Accepted |
 | [0017](adr/0017-asynchronous-graders.md) | Graders may be asynchronous, so a judge grader can exist outside the gate | Accepted |
 | [0018](adr/0018-re-execution-from-the-ledger.md) | Re-execute a run from its ledger, and build eval cases from one | Accepted |
+| [0019](adr/0019-suspended-phase-and-resume.md) | A `suspended` phase for approval, resumed from the ledger | Accepted |
 
 > Gaps in the numbering are ADRs that land with a later feature branch. Numbers
 > are allocated when a decision is made, not when it is merged.
