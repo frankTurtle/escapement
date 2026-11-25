@@ -32,4 +32,13 @@ export type RunEvent =
   | { readonly type: typeof EventType.OutputFinalized; readonly at: number; readonly output: string }
   | { readonly type: typeof EventType.BudgetExceeded; readonly at: number; readonly error: EscapementError }
   | { readonly type: typeof EventType.Fault; readonly at: number; readonly error: EscapementError }
-  | { readonly type: typeof EventType.RunCancelled; readonly at: number };
+  | { readonly type: typeof EventType.RunCancelled; readonly at: number }
+  | {
+      readonly type: typeof EventType.RunResumed;
+      readonly at: number;
+      /** The person's decision on the pending tool calls (ADR-0019). */
+      readonly approved: boolean;
+      /** Who decided. Recorded so the ledger says who let the call run. */
+      readonly by: string;
+      readonly note?: string;
+    };

@@ -108,6 +108,12 @@ jobs:
             echo "auth: granular access token from secrets.NPM_TOKEN"
           else
             echo "auth: npm trusted publishing (OIDC) — no long-lived secret in play"
+            echo "This run will only authenticate if a trusted publisher is"
+            echo "configured at npmjs.com for this package:"
+            echo "  repository: ${GITHUB_REPOSITORY}"
+            echo "  workflow:   $(basename "${GITHUB_WORKFLOW_REF%%@*}")"
+            echo "  environment: npm"
+            echo "If it is not, npm publish will fail with ENEEDAUTH."
           fi
 
       - name: Publish

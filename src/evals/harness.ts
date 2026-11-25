@@ -4,7 +4,7 @@ import { sequentialIds } from "../core/ids.ts";
 import { toEscapementError } from "../core/errors.ts";
 import { scriptedProvider } from "../providers/scripted.ts";
 import { createRegistry } from "../tools/registry.ts";
-import { run } from "../orchestrator/runtime.ts";
+import { resume, run, type RunResult } from "../orchestrator/runtime.ts";
 import { trajectoryFingerprint } from "../orchestrator/ledger.ts";
 import { ZERO_USAGE } from "../orchestrator/state.ts";
 import type { CaseResult, EvalCase, EvalSuite, Grade, SuiteResult } from "./types.ts";
@@ -26,21 +26,31 @@ export async function runCase(evalCase: EvalCase): Promise<CaseResult> {
   };
 
   try {
-    const { ledger, outcome } = await run({
-      goal: evalCase.goal,
-      runId: `run-${evalCase.id}`,
-      seed: evalCase.id,
+    // One provider, clock and registry across every resume, so the script, time
+    // and recorded tools carry on where the suspension left them.
+    const shared = {
       provider: scriptedProvider(evalCase.script, {
         onExhausted: evalCase.onScriptExhausted ?? "fail",
       }),
       tools: createRegistry(evalCase.tools ?? []),
       ...(evalCase.assembler ? { assembler: evalCase.assembler } : {}),
       deps: { clock: manualClock(0), rng: seededRng(evalCase.id), ids: sequentialIds() },
+    };
+    let result: RunResult = await run({
+      ...shared,
+      goal: evalCase.goal,
+      runId: `run-${evalCase.id}`,
+      seed: evalCase.id,
       config: {
         ...(evalCase.budget ? { budget: evalCase.budget } : {}),
         ...(evalCase.retry ? { retry: evalCase.retry } : {}),
       },
     });
+    for (const decision of evalCase.approvals ?? []) {
+      if (result.outcome.status !== "suspended") break;
+      result = await resume(result.ledger, { ...shared, decision });
+    }
+    const { ledger, outcome } = result;
 
     const context = { ledger, outcome, evalCase };
     // Sequential and awaited (ADR-0017). `grade` may return a promise, and a

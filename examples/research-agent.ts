@@ -88,7 +88,15 @@ const result = await run({
 // --- what you get back -----------------------------------------------------
 
 console.log("outcome    :", result.outcome.status);
-console.log("answer     :", result.outcome.status === "completed" ? result.outcome.output : result.outcome.error.message);
+const { outcome } = result;
+console.log(
+  "answer     :",
+  outcome.status === "completed"
+    ? outcome.output
+    : outcome.status === "suspended"
+      ? `awaiting approval for ${outcome.awaiting.calls.map((c) => c.name).join(", ")}`
+      : outcome.error.message,
+);
 console.log();
 console.log("phases     :", phasePath(result.ledger).join(" → "));
 console.log("tools      :", toolSequence(result.ledger).join(", "));

@@ -4,6 +4,7 @@ import type { ScriptedTurn } from "../providers/scripted.ts";
 import type { ContextAssembler } from "../orchestrator/assembler.ts";
 import type { Budget, Outcome, RetryPolicy, Usage } from "../orchestrator/state.ts";
 import type { RunLedger } from "../orchestrator/ledger.ts";
+import type { ResumeDecision } from "../orchestrator/runtime.ts";
 
 /** Everything a grader is allowed to look at. Note: no live anything. */
 export type GradeContext = {
@@ -57,6 +58,11 @@ export type EvalCase = {
   readonly budget?: Partial<Budget>;
   readonly retry?: Partial<RetryPolicy>;
   readonly graders: readonly Grader[];
+  /**
+   * Decisions to apply, in order, each time the run suspends for approval
+   * (ADR-0019). A run that suspends with none left ends the case suspended.
+   */
+  readonly approvals?: readonly ResumeDecision[];
   /**
    * A case whose failure fails the gate outright, whatever the scores did.
    * Reserve it for the properties that must never regress: budgets are

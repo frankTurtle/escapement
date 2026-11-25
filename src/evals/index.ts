@@ -1,5 +1,7 @@
 export type { EvalCase, EvalSuite, Grader, Grade, GradeContext, CaseResult, SuiteResult } from "./types.ts";
 export { runCase, runSuite } from "./harness.ts";
+export { caseFromLedger } from "./from-ledger.ts";
+export type { CaseFromLedgerOptions } from "./from-ledger.ts";
 
 export {
   grader,

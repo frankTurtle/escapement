@@ -27,6 +27,43 @@ export type ObjectSchema = Extract<SchemaNode, { type: "object" }>;
 export type SchemaProblem = { readonly path: string; readonly message: string };
 
 /**
+ * The TypeScript type of a value that `validate` accepts for schema `N`
+ * (ADR-0021). The schema language is small enough to map completely.
+ */
+export type InferSchema<N extends SchemaNode> = N extends { readonly type: "string"; readonly enum: readonly (infer E)[] }
+  ? E
+  : N extends { readonly type: "string" }
+    ? string
+    : N extends { readonly type: "number" | "integer" }
+      ? number
+      : N extends { readonly type: "boolean" }
+        ? boolean
+        : N extends { readonly type: "array"; readonly items: infer I extends SchemaNode }
+          ? readonly InferSchema<I>[]
+          : N extends ObjectSchema
+            ? InferArgs<N>
+            : JsonValue;
+
+type RequiredKeys<S extends ObjectSchema> = S["required"] extends readonly (infer K)[]
+  ? Extract<K, keyof S["properties"]>
+  : never;
+
+type Flatten<T> = { [K in keyof T]: T[K] } & {};
+
+/**
+ * The arguments a tool with schema `S` receives once they have validated
+ * (ADR-0021). A schema whose properties are not known at compile time (one
+ * annotated as plain `ObjectSchema`) gives `JsonObject`, as before.
+ */
+export type InferArgs<S extends ObjectSchema> = string extends keyof S["properties"]
+  ? JsonObject
+  : Flatten<
+      { readonly [K in RequiredKeys<S> & string]: InferSchema<S["properties"][K]> } & {
+        readonly [K in Exclude<keyof S["properties"] & string, RequiredKeys<S>>]?: InferSchema<S["properties"][K]>;
+      }
+    >;
+
+/**
  * Validate `value` against `schema`, collecting *every* problem rather than
  * stopping at the first.
  *

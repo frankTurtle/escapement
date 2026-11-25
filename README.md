@@ -79,7 +79,7 @@ const tools = createRegistry([
     "search",
     "Search the docs.",
     { type: "object", properties: { q: { type: "string" } }, required: ["q"] },
-    (args) => index.query(String(args.q)),
+    (args) => index.query(args.q), // args.q is a string, typed from the schema
     { readOnly: true },   // declares: safe to run concurrently, safe to retry
   ),
 ]);
@@ -96,7 +96,7 @@ const { outcome, ledger } = await run({
   config: { budget: { maxSteps: 8, maxToolCalls: 20 } },
 });
 
-outcome.status;              // "completed" | "failed" | "halted"
+outcome.status;              // "completed" | "failed" | "halted" | "suspended"
 ledger.usage.modelCalls;     // ≤ 8, guaranteed by the reducer, not by the loop
 replay(ledger).ok;           // true — the run reproduces exactly
 ```
@@ -128,6 +128,10 @@ stateDiagram-v2
   route --> observe: route.repair
   model --> failed: retries exhausted / fatal
   tools --> failed: tools.completed (fatal)
+
+  route --> suspended: route.tools (needs approval)
+  suspended --> tools: run.resumed (approved)
+  suspended --> observe: run.resumed (declined)
 
   assemble --> halted: budget
   route --> halted: budget
@@ -164,6 +168,47 @@ The load-bearing distinction is `correctable`. A tool called with a missing
 argument is **not an exception** — it is an observation, handed back so the model
 can fix its own mistake. Retrying it verbatim is how you get the identical broken
 call three times and then an abort.
+
+**Approval.** A tool marked `requiresApproval` never runs on the model's say-so.
+The run stops in `suspended` before the call, and returns its ledger. Store it;
+when someone decides, `resume(ledger, { decision: { approved, by, note } })`
+rebuilds the state from the ledger and carries on. Approved calls run; declined
+ones go back to the model as an observation naming who declined. Time spent
+waiting does not count against the wall-clock budget
+([ADR-0019](docs/adr/0019-suspended-phase-and-resume.md)).
+
+```ts
+const commit = tool("commit", "Commit the change.", schema, doCommit, { requiresApproval: true });
+const first = await run({ goal, provider, tools: createRegistry([commit]) });
+first.outcome; // { status: "suspended", awaiting: { kind: "approval", calls: [...] } }
+
+const done = await resume(first.ledger, { decision: { approved: true, by: "ana" }, provider, tools });
+```
+
+**Several agents.** `pipeline({ id, start, stages, next })` runs one agent per
+stage, in the order a routing function picks, and links each run to the one
+before with `parentRunId` in its ledger. A stage builds its run from the earlier
+handoffs; `next` returns the next stage or `null`, and can loop back for rework
+up to `maxHandoffs`. A run that fails, halts or suspends stops the pipeline with
+that status. `verifyPipeline(result)` checks every link and digest
+([ADR-0020](docs/adr/0020-pipelines-of-runs.md)).
+
+```ts
+const result = await pipeline({
+  id: "fix-1142",
+  start: "implement",
+  stages: { implement, review }, // ({ prior }) => run options for that agent
+  next: (h) => (h.stage === "implement" ? "review" : approved(h) ? null : "implement"),
+  maxHandoffs: 6,
+});
+```
+
+**Replay, and re-execution.** `replay(ledger)` runs the recorded events back
+through the reducer. `reexecute(ledger, { tools })` goes further: it runs the
+whole run again with `replayProvider(ledger)` serving the model's recorded turns
+and `recordedTools(ledger, tools)` serving the tool results, and reports whether
+the new ledger is byte-identical and, if not, the first entry that differs
+([ADR-0018](docs/adr/0018-re-execution-from-the-ledger.md)).
 
 → [ADR-0002](docs/adr/0002-no-langchain-hand-written-orchestrator.md) ·
 [ADR-0005](docs/adr/0005-error-taxonomy.md) ·
@@ -328,8 +373,10 @@ npm run eval:baseline # re-record — release/* branches only
 Stated plainly, because a library that only lists its strengths is selling
 something.
 
-- **Multi-agent topologies.** One agent, one loop. If you need a supervisor over
-  five specialists, use LangGraph.
+- **Concurrent multi-agent topologies.** `pipeline()` runs agents one after
+  another, with routing and rework loops. Fan-out, a supervisor dispatching to
+  five specialists at once, or a graph of agents is not modelled; if you need
+  that, use LangGraph.
 - **Streaming.** `generate` resolves once with a complete message. A
   `ReadableStream` is not JSON and therefore not replayable.
 - **Semantic retrieval.** The default is BM25, and it does not stem — it cannot
@@ -342,7 +389,10 @@ something.
 - **Model-quality evals.** The suite grades orchestration. Grading answers needs
   live runs across seeds, and that has no business gating a pull request.
 - **Provider adapters.** Zero dependencies means no model SDK. Wiring one is
-  about ten lines you own.
+  about ten lines you own. A client that only returns text can use
+  `textProvider(client)`, which asks for a JSON turn and parses it, turning a
+  malformed reply into a repair turn rather than a failure
+  ([ADR-0022](docs/adr/0022-json-turn-protocol-for-text-models.md)).
 
 ---
 
@@ -370,6 +420,11 @@ alternatives written down. Index: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 | [0015](docs/adr/0015-small-tool-schema-and-readonly.md) | A deliberately small tool schema, and `readOnly` as a permission |
 | [0016](docs/adr/0016-publish-on-tag.md) | Publishing is automated from tags, with guards and no long-lived secret |
 | [0017](docs/adr/0017-asynchronous-graders.md) | Graders may be asynchronous, so a judge grader can exist outside the gate |
+| [0018](docs/adr/0018-re-execution-from-the-ledger.md) | Re-execute a run from its ledger, and build eval cases from one |
+| [0019](docs/adr/0019-suspended-phase-and-resume.md) | A `suspended` phase for approval, resumed from the ledger |
+| [0020](docs/adr/0020-pipelines-of-runs.md) | Multi-agent pipelines chain runs and link their ledgers |
+| [0021](docs/adr/0021-schema-typed-tool-handlers.md) | Tool handlers are typed from their schema |
+| [0022](docs/adr/0022-json-turn-protocol-for-text-models.md) | A JSON turn protocol for models without native tool calls |
 
 ---
 

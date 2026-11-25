@@ -74,6 +74,13 @@ export const DEFAULT_RETRY: RetryPolicy = Object.freeze({
 export type RunConfig = {
   readonly budget: Budget;
   readonly retry: RetryPolicy;
+  /**
+   * Tools whose calls need a person's approval before they run (ADR-0019).
+   * Filled by the runtime from `ToolDefinition.requiresApproval`, and recorded
+   * here so the reducer can decide without seeing the registry. Absent means
+   * none.
+   */
+  readonly approvalRequired?: readonly string[];
 };
 
 export const DEFAULT_CONFIG: RunConfig = Object.freeze({ budget: DEFAULT_BUDGET, retry: DEFAULT_RETRY });
@@ -100,7 +107,8 @@ export type ToolExecution = {
 export type Outcome =
   | { readonly status: "completed"; readonly output: string }
   | { readonly status: "failed"; readonly error: EscapementError }
-  | { readonly status: "halted"; readonly error: EscapementError };
+  | { readonly status: "halted"; readonly error: EscapementError }
+  | { readonly status: "suspended"; readonly awaiting: { readonly kind: "approval"; readonly calls: readonly ToolCall[] } };
 
 export type RunState = {
   readonly phase: Phase;
@@ -118,6 +126,8 @@ export type RunState = {
   readonly attempt: number;
   readonly consecutiveFailures: number;
   readonly startedAt: number;
+  /** Time spent suspended, excluded from the wall-clock budget (ADR-0019). */
+  readonly pausedMs: number;
   /** Time of the most recent event. The reducer's only notion of "now". */
   readonly now: number;
   readonly outcome: Outcome | null;
@@ -137,6 +147,7 @@ export function initialState(runId: string, goal: string, startedAt: number): Ru
     attempt: 1,
     consecutiveFailures: 0,
     startedAt,
+    pausedMs: 0,
     now: startedAt,
     outcome: null,
   };

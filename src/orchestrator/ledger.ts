@@ -31,6 +31,9 @@ export type RunLedger = {
   readonly runId: string;
   readonly goal: string;
   readonly seed: string;
+  /** The run this one follows, when it is part of a pipeline (ADR-0020).
+   *  Absent otherwise, so standalone ledgers keep their bytes. */
+  readonly parentRunId?: string;
   readonly config: RunConfig;
   readonly startedAt: number;
   readonly finishedAt: number;
@@ -45,8 +48,12 @@ export type Recorder = {
   readonly entries: readonly LedgerEntry[];
 };
 
-export function createRecorder(onEntry?: (entry: LedgerEntry) => void): Recorder {
-  const entries: LedgerEntry[] = [];
+export function createRecorder(
+  onEntry?: (entry: LedgerEntry) => void,
+  history: readonly LedgerEntry[] = [],
+): Recorder {
+  // `history` is a resumed run's earlier entries; numbering carries on (ADR-0019).
+  const entries: LedgerEntry[] = [...history];
   return {
     entries,
     record: (partial) => {

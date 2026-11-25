@@ -22,6 +22,7 @@ stateDiagram-v2
     model --> halted: model.failed
     route --> tools: route.tools
     route --> halted: route.tools
+    route --> suspended: route.tools
     route --> finalize: route.answer
     route --> observe: route.repair
     tools --> observe: tools.completed
@@ -30,6 +31,8 @@ stateDiagram-v2
     observe --> halted: observations.recorded
     backoff --> model: backoff.elapsed
     finalize --> done: output.finalized
+    suspended --> tools: run.resumed
+    suspended --> observe: run.resumed
     done --> [*]
     failed --> [*]
     halted --> [*]
@@ -43,19 +46,20 @@ stateDiagram-v2
 
 ## Every transition
 
-| from \ event | backoff.elapsed | budget.exceeded | context.assembled | fault | model.failed | model.succeeded | observations.recorded | output.finalized | route.answer | route.repair | route.tools | run.cancelled | run.started | tools.completed |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **init** | · | halted | · | failed | · | · | · | · | · | · | · | failed | assemble, halted | · |
-| **assemble** | · | halted | model, halted | failed | · | · | · | · | · | · | · | failed | · | · |
-| **model** | · | halted | · | failed | backoff, observe, failed, halted | route | · | · | · | · | · | failed | · | · |
-| **route** | · | halted | · | failed | · | · | · | · | finalize | observe | tools, halted | failed | · | · |
-| **tools** | · | halted | · | failed | · | · | · | · | · | · | · | failed | · | observe, failed |
-| **observe** | · | halted | · | failed | · | · | assemble, halted | · | · | · | · | failed | · | · |
-| **backoff** | model | halted | · | failed | · | · | · | · | · | · | · | failed | · | · |
-| **finalize** | · | halted | · | failed | · | · | · | done | · | · | · | failed | · | · |
-| **done** | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| **failed** | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| **halted** | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| from \ event | backoff.elapsed | budget.exceeded | context.assembled | fault | model.failed | model.succeeded | observations.recorded | output.finalized | route.answer | route.repair | route.tools | run.cancelled | run.resumed | run.started | tools.completed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **init** | · | halted | · | failed | · | · | · | · | · | · | · | failed | · | assemble, halted | · |
+| **assemble** | · | halted | model, halted | failed | · | · | · | · | · | · | · | failed | · | · | · |
+| **model** | · | halted | · | failed | backoff, observe, failed, halted | route | · | · | · | · | · | failed | · | · | · |
+| **route** | · | halted | · | failed | · | · | · | · | finalize | observe | tools, halted, suspended | failed | · | · | · |
+| **tools** | · | halted | · | failed | · | · | · | · | · | · | · | failed | · | · | observe, failed |
+| **observe** | · | halted | · | failed | · | · | assemble, halted | · | · | · | · | failed | · | · | · |
+| **backoff** | model | halted | · | failed | · | · | · | · | · | · | · | failed | · | · | · |
+| **finalize** | · | halted | · | failed | · | · | · | done | · | · | · | failed | · | · | · |
+| **suspended** | · | halted | · | failed | · | · | · | · | · | · | · | failed | tools, observe | · | · |
+| **done** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| **failed** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| **halted** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 
 `·` means the phase does not accept that event; attempting it throws
 `InvariantViolation` rather than being ignored.
@@ -118,6 +122,12 @@ Accepts: `budget.exceeded`, `fault`, `run.cancelled`, `backoff.elapsed`
 Turning a draft answer into the run's output.
 
 Accepts: `budget.exceeded`, `fault`, `run.cancelled`, `output.finalized`
+
+### `suspended`
+
+Waiting for a person to approve the tool calls the model asked for. Not terminal: `resume()` continues the run from its ledger.
+
+Accepts: `budget.exceeded`, `fault`, `run.cancelled`, `run.resumed`
 
 ### `done` *(terminal)*
 

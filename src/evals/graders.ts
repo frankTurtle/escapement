@@ -54,12 +54,12 @@ export function endsAs(status: Outcome["status"]): Grader {
 
 export function failsWith(code: string): Grader {
   return grader(`fails-with:${code}`, ({ outcome }) => {
-    const actual = outcome.status === "completed" ? null : outcome.error.code;
+    const actual = outcome.status === "failed" || outcome.status === "halted" ? outcome.error.code : null;
     const ok = actual === code;
     return {
       score: ok ? 1 : 0,
       passed: ok,
-      reason: ok ? `ended with ${code}` : `expected error ${code}, got ${actual ?? "completion"}`,
+      reason: ok ? `ended with ${code}` : `expected error ${code}, got ${actual ?? (outcome.status === "suspended" ? "suspension" : "completion")}`,
     };
   });
 }
