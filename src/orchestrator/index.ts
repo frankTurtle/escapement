@@ -51,3 +51,6 @@ export type { RunOptions, RunResult, RunDeps } from "./runtime.ts";
 
 export { toMermaid, toMarkdownTable } from "./diagram.ts";
 export { renderStateMachineDoc } from "./doc.ts";
+
+export { replayProvider, recordedTools, scriptFromLedger, reexecute } from "./reexecute.ts";
+export type { ReplayProvider, ReplayProviderOptions, ReexecuteOptions, ReexecuteResult } from "./reexecute.ts";

@@ -165,6 +165,13 @@ argument is **not an exception** — it is an observation, handed back so the mo
 can fix its own mistake. Retrying it verbatim is how you get the identical broken
 call three times and then an abort.
 
+**Replay, and re-execution.** `replay(ledger)` runs the recorded events back
+through the reducer. `reexecute(ledger, { tools })` goes further: it runs the
+whole run again with `replayProvider(ledger)` serving the model's recorded turns
+and `recordedTools(ledger, tools)` serving the tool results, and reports whether
+the new ledger is byte-identical and, if not, the first entry that differs
+([ADR-0018](docs/adr/0018-re-execution-from-the-ledger.md)).
+
 → [ADR-0002](docs/adr/0002-no-langchain-hand-written-orchestrator.md) ·
 [ADR-0005](docs/adr/0005-error-taxonomy.md) ·
 [ADR-0006](docs/adr/0006-table-driven-fsm-pure-reducer.md) ·

@@ -120,3 +120,26 @@ await run({ goal, provider: recorder, tools });
 
 Failures are recorded too, so a rate-limit storm that produced a bad trajectory
 becomes a reproducible case rather than an anecdote.
+
+If you kept the ledger rather than a script, skip the recorder:
+
+```ts
+import { caseFromLedger, endsAs, callsTools, replaysExactly } from "escapement/evals";
+
+const evalCase = caseFromLedger(ledger, [endsAs("completed"), callsTools(["search"]), replaysExactly()], {
+  id: "prod-incident-1142",
+  tools: [searchTool], // the original definitions; their handlers answer from the ledger
+});
+```
+
+The script comes from `scriptFromLedger` (model turns, failures and the
+provider's own call ids), the tools from `recordedTools` (each call answered
+with its recorded result, retries included), and the budget from the run's
+config. No network, no repository on disk
+([ADR-0018](adr/0018-re-execution-from-the-ledger.md)).
+
+To check that a run *re-executes* — runtime, assembler and tools included, not
+just the reducer — use `reexecute(ledger, { tools, assembler })` from
+`escapement/orchestrator`. It returns `identical` and the `firstDifference`
+entry. Byte-identical needs a run recorded on a manual clock, as the harness
+records them.

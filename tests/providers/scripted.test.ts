@@ -42,6 +42,25 @@ describe("scripted provider", () => {
     assert.deepEqual(first.value.message.toolCalls?.map((c) => c.id), ["call-01-01", "call-01-02"]);
   });
 
+  test("a scripted call id is kept, so a script can reproduce another provider's ledger", async () => {
+    const provider = scriptedProvider([
+      {
+        say: "s",
+        callTools: [
+          { id: "toolu_01A", name: "a", args: {} },
+          { name: "b", args: {} },
+        ],
+      },
+    ]);
+    const turn = await provider.generate(request, ctx);
+    assert.ok(turn.ok);
+    assert.deepEqual(
+      turn.value.message.toolCalls?.map((c) => c.id),
+      ["toolu_01A", "call-01-02"],
+      "a call without an id still gets the generated one",
+    );
+  });
+
   test("can be scripted to fail, with a real classified error", async () => {
     const provider = scriptedProvider([{ failWith: transient("model.rate_limited", "429") }, { say: "recovered" }]);
     const a = await provider.generate(request, ctx);
@@ -97,5 +116,14 @@ describe("recording provider", () => {
     const second = await replay.generate(request, ctx);
     assert.ok(!second.ok);
     assert.equal(second.error.code, "model.timeout");
+  });
+
+  test("records the provider's call ids, so the replayed script reproduces them", async () => {
+    const live = scriptedProvider([{ say: "", callTools: [{ id: "toolu_xyz", name: "search", args: { query: "q" } }] }]);
+    const recorder = recordingProvider(live);
+    await recorder.generate(request, ctx);
+    const replayed = await scriptedProvider(recorder.script).generate(request, ctx);
+    assert.ok(replayed.ok);
+    assert.equal(replayed.value.message.toolCalls?.[0]?.id, "toolu_xyz");
   });
 });
