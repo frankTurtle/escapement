@@ -10,6 +10,8 @@ const PHASE_NOTES: Readonly<Record<Phase, string>> = {
   [Phase.Observe]: "Folding results back into the transcript as observations.",
   [Phase.Backoff]: "Waiting out a transient failure before retrying.",
   [Phase.Finalize]: "Turning a draft answer into the run's output.",
+  [Phase.Suspended]:
+    "Waiting for a person to approve the tool calls the model asked for. Not terminal: `resume()` continues the run from its ledger.",
   [Phase.Done]: "Terminal. Produced an answer.",
   [Phase.Failed]: "Terminal. Gave up; something was wrong.",
   [Phase.Halted]: "Terminal. Hit a declared limit; nothing was wrong.",

@@ -4,7 +4,17 @@ import { fatal, type EscapementError } from "../core/errors.ts";
 import { ok, err } from "../core/result.ts";
 import type { ModelProvider, ModelRequest, ModelResponse, StopReason } from "./provider.ts";
 
-export type ScriptedToolCall = { readonly name: string; readonly args: JsonObject };
+export type ScriptedToolCall = {
+  readonly name: string;
+  readonly args: JsonObject;
+  /**
+   * The call id to emit. Optional: without one the provider generates
+   * `call-<turn>-<index>`. Set it when the script was taken from another
+   * provider's ledger, so the tool messages carry the same `callId`s and the
+   * re-executed ledger is byte-identical (ADR-0018).
+   */
+  readonly id?: string;
+};
 
 export type ScriptedTurn =
   | {
@@ -76,7 +86,7 @@ export function scriptedProvider(
       if ("failWith" in turn) return err(turn.failWith);
 
       const toolCalls: ToolCall[] = (turn.callTools ?? []).map((call, i) => ({
-        id: `call-${String(cursor).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
+        id: call.id ?? `call-${String(cursor).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
         name: call.name,
         args: call.args,
       }));
@@ -115,7 +125,7 @@ export function recordingProvider(inner: ModelProvider): ModelProvider & { reado
         script.push({
           say: message.content,
           ...(message.toolCalls && message.toolCalls.length > 0
-            ? { callTools: message.toolCalls.map((c) => ({ name: c.name, args: c.args })) }
+            ? { callTools: message.toolCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })) }
             : {}),
           usage: { promptTokens: usage.promptTokens, completionTokens: usage.completionTokens },
           stopReason,
