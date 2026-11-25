@@ -5,7 +5,7 @@ Notable changes to Escapement. The format follows
 [semver](https://semver.org/). While the major version is `0`, minor releases
 may change behaviour — including eval scores, which the baseline records.
 
-## [0.3.0] — Unreleased
+## [0.3.0] — 2026-11-25
 
 Seven gaps found while building a four-agent planner, implementer, tester and
 reviewer workflow on 0.2.0 (Rollcage piece 13), which had to work around each of
@@ -90,6 +90,8 @@ parse and replay as before.
   either.
 - Approval is all-or-nothing per model turn, and only tool calls can suspend a
   run. Pipelines run their stages one after another, with no fan-out.
+
+[0.3.0]: https://github.com/frankTurtle/escapement/releases/tag/v0.3.0
 
 ## [0.2.0] — 2026-08-31
 
